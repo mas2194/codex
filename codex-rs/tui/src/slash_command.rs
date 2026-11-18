@@ -44,6 +44,7 @@ pub enum SlashCommand {
     Plan,
     Voice,
     Goal,
+    Teamwork,
     Agents,
     Side,
     Btw,
@@ -144,6 +145,9 @@ impl SlashCommand {
             SlashCommand::Plan => "switch to Plan mode",
             SlashCommand::Voice => "start or stop voice; use /voice settings to choose a voice",
             SlashCommand::Goal => "set or view the goal for a long-running task",
+            SlashCommand::Teamwork => {
+                "run a goal with a coordinated team of subagents and review gates"
+            }
             SlashCommand::Agents => "open the agent command center",
             SlashCommand::MultiAgents => "switch between this session's subagents",
             SlashCommand::Side | SlashCommand::Btw => "start a side conversation",
@@ -186,6 +190,7 @@ impl SlashCommand {
                 | SlashCommand::Fork
                 | SlashCommand::Plan
                 | SlashCommand::Goal
+                | SlashCommand::Teamwork
                 | SlashCommand::Voice
                 | SlashCommand::Ide
                 | SlashCommand::Keymap
@@ -272,6 +277,7 @@ impl SlashCommand {
             | SlashCommand::Import
             | SlashCommand::Review
             | SlashCommand::Plan
+            | SlashCommand::Teamwork
             | SlashCommand::Cd
             | SlashCommand::Clear
             | SlashCommand::Logout
@@ -373,6 +379,17 @@ mod tests {
         assert!(SlashCommand::Raw.available_in_side_conversation());
         assert!(SlashCommand::Raw.supports_inline_args());
         assert!(SlashCommand::App.available_during_task());
+    }
+
+    #[test]
+    fn teamwork_command_accepts_inline_goal() {
+        assert_eq!(SlashCommand::Teamwork.command(), "teamwork");
+        assert_eq!(
+            SlashCommand::from_str("teamwork"),
+            Ok(SlashCommand::Teamwork)
+        );
+        assert!(SlashCommand::Teamwork.supports_inline_args());
+        assert!(!SlashCommand::Teamwork.available_during_task());
     }
 
     #[test]

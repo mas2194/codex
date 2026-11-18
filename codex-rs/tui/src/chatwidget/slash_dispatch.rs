@@ -382,6 +382,12 @@ impl ChatWidget {
             SlashCommand::Plan => {
                 self.apply_plan_slash_command();
             }
+            SlashCommand::Teamwork => {
+                self.add_info_message(
+                    crate::teamwork::TEAMWORK_USAGE.to_string(),
+                    Some(crate::teamwork::TEAMWORK_USAGE_HINT.to_string()),
+                );
+            }
             SlashCommand::Goal => {
                 if !self.config.features.enabled(Feature::Goals) {
                     return;
@@ -1026,6 +1032,48 @@ impl ChatWidget {
                     );
                 }
             }
+            SlashCommand::Teamwork if !trimmed.is_empty() => {
+                if !self.config.features.enabled(Feature::Collab)
+                    && !self.config.features.enabled(Feature::MultiAgentV2)
+                {
+                    self.add_info_message(
+                        "Starting /teamwork without subagents.".to_string(),
+                        Some(crate::teamwork::TEAMWORK_SUBAGENTS_DISABLED_HINT.to_string()),
+                    );
+                }
+                let mut user_message = self.prepared_inline_user_message(
+                    args,
+                    text_elements,
+                    local_images,
+                    remote_image_urls,
+                    mention_bindings,
+                    source,
+                );
+                if self.is_session_configured() {
+                    let (prompt, text_elements) = crate::teamwork::build_teamwork_prompt(
+                        &user_message.text,
+                        std::mem::take(&mut user_message.text_elements),
+                    );
+                    user_message.text = prompt;
+                    user_message.text_elements = text_elements;
+                    self.submit_user_message_with_shell_escape_policy(
+                        user_message,
+                        ShellEscapePolicy::Disallow,
+                    );
+                } else {
+                    const TEAMWORK_PREFIX: &str = "/teamwork ";
+                    user_message.text.insert_str(0, TEAMWORK_PREFIX);
+                    for element in &mut user_message.text_elements {
+                        element.byte_range.start += TEAMWORK_PREFIX.len();
+                        element.byte_range.end += TEAMWORK_PREFIX.len();
+                    }
+                    self.queue_user_message_with_options(
+                        user_message,
+                        QueuedInputAction::ParseSlash,
+                        Vec::new(),
+                    );
+                }
+            }
             SlashCommand::Goal if !trimmed.is_empty() => {
                 if !self.config.features.enabled(Feature::Goals) {
                     if source == SlashCommandDispatchSource::Live {
@@ -1379,6 +1427,7 @@ impl ChatWidget {
             | SlashCommand::Presets
             | SlashCommand::Plan
             | SlashCommand::Goal
+            | SlashCommand::Teamwork
             | SlashCommand::Side
             | SlashCommand::Btw
             | SlashCommand::Keymap
