@@ -1,42 +1,71 @@
 # `/teamwork`
 
-`/teamwork <goal>` runs a long, multi-step goal with a coordinated team of subagents. The command is modeled on the agent-team workflow found in other agentic IDEs: a scoping step, milestone execution, and independent review gates.
+`/teamwork <goal>` runs a long, multi-step goal with a coordinated team of subagents: scoping, milestone execution, and independent review gates. The workflow is enforced by the harness (the `codex-teamwork-extension` crate), not only by prompt instructions.
 
 ```text
 /teamwork migrate the REST service from Express to Fastify with full test coverage
+/teamwork status
+/teamwork stop
 ```
 
-## How it works
+The harness recognizes any user message that starts with `/teamwork`, so the command works from the TUI, `codex exec`, and app-server clients.
 
-The current (root) agent becomes the **lead**. It is the only agent that talks to you, and it owns the plan and the final answer.
+## Architecture
 
-1. **Scoping.** The lead reads only as much of the repository as it needs. It writes down the goals, requirements, acceptance criteria, and how each criterion will be verified, in `.codex/teamwork/<slug>/BRIEF.md`. It asks you up to three questions only when an ambiguity would risk wasted or destructive work.
-2. **Plan.** The lead splits the work into milestones. Each milestone is split into tracks that touch non-overlapping files. The plan, including each subagent's role, model, and reasoning effort, is kept in `.codex/teamwork/<slug>/PLAN.md`.
-3. **Execute.** For each milestone, the lead spawns one worker per track (in parallel when the tracks are independent), integrates the results, and runs the verification commands.
-4. **Gates.** Fresh subagents that did not write the code review each milestone:
-   - **Critic**: finds correctness bugs and violations of repository conventions.
-   - **Challenger**: tries to break the result.
-   - **Auditor**: checks the milestone against the acceptance criteria.
+The current (root) agent becomes the **lead**. The harness keeps the run as a state machine and persists it to `$CODEX_HOME/teamwork/<thread-id>.json`, so an unfinished run survives a restart.
 
-   A failing gate sends findings back for a fix. The loop runs at most three rounds, after which the lead reports the blocker to you.
-5. **Success audit.** A final auditor re-runs the full verification suite against the brief before the lead reports success.
+```text
+scoping ──record_brief──▶ planning ──record_plan──▶ executing(m) ──submit_for_review──▶ gating(m)
+                                                        ▲                                  │
+                                                        └──── any gate FAIL (≤ 3 rounds) ◀─┤
+                                                                                           │ all PASS
+                                     complete ◀── PASS ── final_audit ◀── last milestone ──┘
+                                                            │   ▲
+                                                       FAIL ▼   │ submit_for_review("final")
+                                                           final_fix
+```
+
+The lead advances the run only through harness tools:
+
+| Tool | Who can call it | What the harness enforces |
+|---|---|---|
+| `teamwork_record_brief` | lead | Every acceptance criterion needs a verification method. |
+| `teamwork_record_plan` | lead | Milestones and tracks need unique ids. **Tracks in a milestone cannot own overlapping files or directories.** The model and reasoning effort for each track are recorded. |
+| `teamwork_submit_for_review` | lead | Only the current milestone can be submitted. The harness opens Critic, Challenger, and Auditor tickets, each with a ready-made `spawn_message`. |
+| `teamwork_submit_verdict` | spawned descendants only | The lead can never record a verdict. A thread that edited files (via `apply_patch`) cannot act as a gate. One agent cannot fill two gates in the same round. `fail` requires findings; `pass` requires evidence. |
+| `teamwork_block` | lead | Stops automatic continuation until the user replies. |
+| `teamwork_status` | lead | Returns the authoritative state and the spawn messages for open tickets. |
+
+Other guarantees:
+
+- **The run cannot finish early.** Only a passing Success Auditor verdict moves the run to `complete`.
+- **Bounded fix loops.** After three failed review rounds for a milestone, or for the final audit, the run blocks for the user. A reply from the user resumes it with a fresh fix budget.
+- **Automatic continuation.** Whenever the lead's turn ends while the run is in `planning` through `final_fix`, the harness starts a continuation turn that carries the current state and the next required action.
+- **No-progress breaker.** Three consecutive continuations without any state change block the run for the user.
+- **Robust to compaction.** Every user message during an active run gets the authoritative state attached, as does every continuation.
 
 ## Model and reasoning effort
 
-You do not pick models for the team. The lead chooses the `model` and `reasoning_effort` for every subagent from the models offered to it (the `spawn_agent` tool description or `<model_catalog>`):
+You do not pick models for the team. The lead chooses the `model` and `reasoning_effort` for every subagent from the models offered to it (the `spawn_agent` tool description or `<model_catalog>`), and records its choices in the plan:
 
 - **Mechanical edits and searches:** a fast model with low effort.
 - **Well-specified implementation:** the default model with medium effort.
-- **Design, gate reviews, and retries after a failed gate:** the strongest model with high effort, or `xhigh` when offered.
+- **Design, retries after a failed gate, and every gate:** the strongest model with high effort, or `xhigh` when offered. Each gate ticket carries this recommendation.
 
 The lead's own model and effort are whatever you selected with `/model`.
 
 ## Prompt format
 
-The lead writes each delegation message as a standalone brief. The brief uses the XML-style sections recommended in OpenAI's GPT-5 prompting guides: `<role>`, `<objective>`, `<context>`, `<scope>`, `<instructions>`, `<verification>`, and `<output_format>`. Every subagent returns a structured report with a status, the changes made, the verification run, its findings, and its assumptions. The full lead prompt is in [`codex-rs/tui/assets/prompt_for_teamwork_command.md`](../codex-rs/tui/assets/prompt_for_teamwork_command.md).
+Harness-owned prompts follow the structure recommended in OpenAI's GPT-5 prompting guides:
 
-## Requirements
+- **Lead instructions:** Markdown sections (`Role and Objective`, `Phases`, `Rules`, `Final Output`).
+- **Gate briefs:** XML-style blocks (`<role>`, `<objective>`, `<context>`, `<instructions>`, `<verdict>`, `<output_format>`).
+- **Worker briefs:** the lead uses the same blocks.
 
-- Subagents must be enabled (the `multi_agent` feature, on by default, or `multi_agent_v2`). If they are disabled, the lead runs every phase itself and reviews its own work against each gate.
-- Subagents inherit the session's sandbox and approval settings.
-- `/teamwork` uses noticeably more tokens than a single-agent turn. Use it for large or multi-milestone work.
+The templates are in [`codex-rs/ext/teamwork/templates`](../codex-rs/ext/teamwork/templates).
+
+## Limitations
+
+- File ownership is checked when the plan is recorded. The harness does not intercept edits at runtime, so an agent that edits files outside its track is caught only by the gates.
+- An edit made through a shell command (rather than `apply_patch`) does not disqualify an agent from serving as a gate.
+- Subagents must be enabled (`multi_agent`, on by default, or `multi_agent_v2`). Without them, the run blocks at its first gate.

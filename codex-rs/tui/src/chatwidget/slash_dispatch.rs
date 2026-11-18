@@ -1049,24 +1049,15 @@ impl ChatWidget {
                     mention_bindings,
                     source,
                 );
+                // The harness (codex-teamwork-extension) recognizes the literal command, so the
+                // TUI forwards it unchanged instead of expanding it into a prompt.
+                crate::teamwork::prefix_teamwork_command(&mut user_message);
                 if self.is_session_configured() {
-                    let (prompt, text_elements) = crate::teamwork::build_teamwork_prompt(
-                        &user_message.text,
-                        std::mem::take(&mut user_message.text_elements),
-                    );
-                    user_message.text = prompt;
-                    user_message.text_elements = text_elements;
                     self.submit_user_message_with_shell_escape_policy(
                         user_message,
                         ShellEscapePolicy::Disallow,
                     );
                 } else {
-                    const TEAMWORK_PREFIX: &str = "/teamwork ";
-                    user_message.text.insert_str(0, TEAMWORK_PREFIX);
-                    for element in &mut user_message.text_elements {
-                        element.byte_range.start += TEAMWORK_PREFIX.len();
-                        element.byte_range.end += TEAMWORK_PREFIX.len();
-                    }
                     self.queue_user_message_with_options(
                         user_message,
                         QueuedInputAction::ParseSlash,

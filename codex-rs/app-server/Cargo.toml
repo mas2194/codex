@@ -67,6 +67,7 @@ codex-plugin = { workspace = true }
 codex-shell-command = { workspace = true }
 codex-skills = { workspace = true }
 codex-skills-extension = { workspace = true }
+codex-teamwork-extension = { workspace = true }
 codex-utils-cli = { workspace = true }
 codex-user-verification = { workspace = true }
 codex-utils-pty = { workspace = true }
