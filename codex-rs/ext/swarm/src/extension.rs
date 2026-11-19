@@ -282,12 +282,11 @@ impl<C> SwarmExtension<C> {
                     run.on_user_input();
                     Some(
                         run.post(USER, &[], MessageKind::Note, &message)
-                            .map(|posted| {
+                            .inspect(|posted| {
                                 // The coordinator reads the message in this turn.
                                 if posted.recipients.iter().any(|r| r == COORDINATOR) {
                                     run.mark_delivered(COORDINATOR, posted.seq);
                                 }
-                                posted
                             }),
                     )
                 });

@@ -267,7 +267,7 @@ fn render_message(message: &BoardMessage) -> String {
             .join(" ")
     };
     format!(
-        "#{} [{}] @{} -> {}\n{}",
+        "#{} [{}] from @{} to {}\n{}",
         message.seq,
         message.kind.as_str(),
         message.from,
@@ -382,7 +382,7 @@ mod tests {
             .expect("post");
         let pending = run.pending_for("api");
         let prompt = delivery_prompt(&run, "api", &pending);
-        assert!(prompt.contains("@check -> @api"));
+        assert!(prompt.contains("from @check to @api"));
         assert!(prompt.contains("which port?"));
         assert!(prompt.contains("work: in_progress"));
     }
