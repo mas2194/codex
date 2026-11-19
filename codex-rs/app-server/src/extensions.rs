@@ -98,6 +98,17 @@ pub(crate) fn thread_extensions(
             },
         );
     }
+    // One service per registry: every thread of this thread manager (lead and spawned gate
+    // agents alike) shares it, so gate verdicts reach the run owned by their lead.
+    codex_teamwork_extension::install(
+        &mut builder,
+        codex_teamwork_extension::TeamworkService::new(),
+        thread_manager.clone(),
+        |config: &Config| codex_teamwork_extension::TeamworkExtensionConfig {
+            enabled: true,
+            state_dir: Some(config.codex_home.to_path_buf().join("teamwork")),
+        },
+    );
     codex_git_attribution::install(
         &mut builder,
         auth_manager.clone(),

@@ -382,6 +382,12 @@ impl ChatWidget {
             SlashCommand::Plan => {
                 self.apply_plan_slash_command();
             }
+            SlashCommand::Teamwork => {
+                self.add_info_message(
+                    crate::teamwork::TEAMWORK_USAGE.to_string(),
+                    Some(crate::teamwork::TEAMWORK_USAGE_HINT.to_string()),
+                );
+            }
             SlashCommand::Goal => {
                 if !self.config.features.enabled(Feature::Goals) {
                     return;
@@ -1026,6 +1032,39 @@ impl ChatWidget {
                     );
                 }
             }
+            SlashCommand::Teamwork if !trimmed.is_empty() => {
+                if !self.config.features.enabled(Feature::Collab)
+                    && !self.config.features.enabled(Feature::MultiAgentV2)
+                {
+                    self.add_info_message(
+                        "Starting /teamwork without subagents.".to_string(),
+                        Some(crate::teamwork::TEAMWORK_SUBAGENTS_DISABLED_HINT.to_string()),
+                    );
+                }
+                let mut user_message = self.prepared_inline_user_message(
+                    args,
+                    text_elements,
+                    local_images,
+                    remote_image_urls,
+                    mention_bindings,
+                    source,
+                );
+                // The harness (codex-teamwork-extension) recognizes the literal command, so the
+                // TUI forwards it unchanged instead of expanding it into a prompt.
+                crate::teamwork::prefix_teamwork_command(&mut user_message);
+                if self.is_session_configured() {
+                    self.submit_user_message_with_shell_escape_policy(
+                        user_message,
+                        ShellEscapePolicy::Disallow,
+                    );
+                } else {
+                    self.queue_user_message_with_options(
+                        user_message,
+                        QueuedInputAction::ParseSlash,
+                        Vec::new(),
+                    );
+                }
+            }
             SlashCommand::Goal if !trimmed.is_empty() => {
                 if !self.config.features.enabled(Feature::Goals) {
                     if source == SlashCommandDispatchSource::Live {
@@ -1379,6 +1418,7 @@ impl ChatWidget {
             | SlashCommand::Presets
             | SlashCommand::Plan
             | SlashCommand::Goal
+            | SlashCommand::Teamwork
             | SlashCommand::Side
             | SlashCommand::Btw
             | SlashCommand::Keymap

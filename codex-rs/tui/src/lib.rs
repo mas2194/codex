@@ -173,6 +173,7 @@ mod inline_visualization;
 pub(crate) mod insert_history;
 mod managed_worktree_tool_specs;
 mod managed_worktree_tools;
+mod teamwork;
 mod terminal_program_status;
 pub use insert_history::insert_history_lines;
 mod footer_hint;
