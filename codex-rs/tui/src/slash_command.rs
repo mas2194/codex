@@ -45,6 +45,7 @@ pub enum SlashCommand {
     Voice,
     Goal,
     Teamwork,
+    Swarm,
     Agents,
     Side,
     Btw,
@@ -148,6 +149,9 @@ impl SlashCommand {
             SlashCommand::Teamwork => {
                 "run a goal with a coordinated team of subagents and review gates"
             }
+            SlashCommand::Swarm => {
+                "split a task among named agents that work in parallel on a shared board"
+            }
             SlashCommand::Agents => "open the agent command center",
             SlashCommand::MultiAgents => "switch between this session's subagents",
             SlashCommand::Side | SlashCommand::Btw => "start a side conversation",
@@ -191,6 +195,7 @@ impl SlashCommand {
                 | SlashCommand::Plan
                 | SlashCommand::Goal
                 | SlashCommand::Teamwork
+                | SlashCommand::Swarm
                 | SlashCommand::Voice
                 | SlashCommand::Ide
                 | SlashCommand::Keymap
@@ -278,6 +283,7 @@ impl SlashCommand {
             | SlashCommand::Review
             | SlashCommand::Plan
             | SlashCommand::Teamwork
+            | SlashCommand::Swarm
             | SlashCommand::Cd
             | SlashCommand::Clear
             | SlashCommand::Logout
@@ -390,6 +396,14 @@ mod tests {
         );
         assert!(SlashCommand::Teamwork.supports_inline_args());
         assert!(!SlashCommand::Teamwork.available_during_task());
+    }
+
+    #[test]
+    fn swarm_command_accepts_inline_task() {
+        assert_eq!(SlashCommand::Swarm.command(), "swarm");
+        assert_eq!(SlashCommand::from_str("swarm"), Ok(SlashCommand::Swarm));
+        assert!(SlashCommand::Swarm.supports_inline_args());
+        assert!(!SlashCommand::Swarm.available_during_task());
     }
 
     #[test]

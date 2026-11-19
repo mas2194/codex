@@ -109,6 +109,17 @@ pub(crate) fn thread_extensions(
             state_dir: Some(config.codex_home.to_path_buf().join("teamwork")),
         },
     );
+    // Same pattern for `/swarm`: coordinator and member threads share one service, and the
+    // thread manager lets the harness wake parked members when the board mentions them.
+    codex_swarm_extension::install(
+        &mut builder,
+        codex_swarm_extension::SwarmService::new(),
+        thread_manager.clone(),
+        |config: &Config| codex_swarm_extension::SwarmExtensionConfig {
+            enabled: true,
+            state_dir: Some(config.codex_home.to_path_buf().join("swarm")),
+        },
+    );
     codex_git_attribution::install(
         &mut builder,
         auth_manager.clone(),

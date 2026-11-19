@@ -81,6 +81,7 @@ members = [
     "ext/mcp",
     "ext/queue",
     "ext/skills",
+    "ext/swarm",
     "ext/teamwork",
     "ext/web-search",
     "external-agent-migration",
@@ -300,6 +301,7 @@ codex-sandboxing = { path = "sandboxing" }
 codex-secrets = { path = "secrets" }
 codex-shell-command = { path = "shell-command" }
 codex-skills-extension = { path = "ext/skills" }
+codex-swarm-extension = { path = "ext/swarm" }
 codex-teamwork-extension = { path = "ext/teamwork" }
 codex-skills = { path = "skills" }
 codex-state = { path = "state" }

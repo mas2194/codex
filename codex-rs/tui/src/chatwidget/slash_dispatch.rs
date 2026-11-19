@@ -388,6 +388,12 @@ impl ChatWidget {
                     Some(crate::teamwork::TEAMWORK_USAGE_HINT.to_string()),
                 );
             }
+            SlashCommand::Swarm => {
+                self.add_info_message(
+                    crate::swarm::SWARM_USAGE.to_string(),
+                    Some(crate::swarm::SWARM_USAGE_HINT.to_string()),
+                );
+            }
             SlashCommand::Goal => {
                 if !self.config.features.enabled(Feature::Goals) {
                     return;
@@ -1065,6 +1071,39 @@ impl ChatWidget {
                     );
                 }
             }
+            SlashCommand::Swarm if !trimmed.is_empty() => {
+                if !self.config.features.enabled(Feature::Collab)
+                    && !self.config.features.enabled(Feature::MultiAgentV2)
+                {
+                    self.add_info_message(
+                        "Starting /swarm without subagents.".to_string(),
+                        Some(crate::swarm::SWARM_SUBAGENTS_DISABLED_HINT.to_string()),
+                    );
+                }
+                let mut user_message = self.prepared_inline_user_message(
+                    args,
+                    text_elements,
+                    local_images,
+                    remote_image_urls,
+                    mention_bindings,
+                    source,
+                );
+                // The harness (codex-swarm-extension) recognizes the literal command, so the TUI
+                // forwards it unchanged instead of expanding it into a prompt.
+                crate::swarm::prefix_swarm_command(&mut user_message);
+                if self.is_session_configured() {
+                    self.submit_user_message_with_shell_escape_policy(
+                        user_message,
+                        ShellEscapePolicy::Disallow,
+                    );
+                } else {
+                    self.queue_user_message_with_options(
+                        user_message,
+                        QueuedInputAction::ParseSlash,
+                        Vec::new(),
+                    );
+                }
+            }
             SlashCommand::Goal if !trimmed.is_empty() => {
                 if !self.config.features.enabled(Feature::Goals) {
                     if source == SlashCommandDispatchSource::Live {
@@ -1419,6 +1458,7 @@ impl ChatWidget {
             | SlashCommand::Plan
             | SlashCommand::Goal
             | SlashCommand::Teamwork
+            | SlashCommand::Swarm
             | SlashCommand::Side
             | SlashCommand::Btw
             | SlashCommand::Keymap

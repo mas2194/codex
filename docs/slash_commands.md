@@ -5,3 +5,4 @@ For an overview of Codex CLI slash commands, see [this documentation](https://de
 ## Built-in workflow commands
 
 - [`/teamwork <goal>`](./teamwork.md): run a goal with a harness-managed team of subagents, milestones, and independent review gates.
+- [`/swarm <task>`](./swarm.md): split a task among named agents that work in parallel and coordinate on a shared message board, with adversarial verifiers.
