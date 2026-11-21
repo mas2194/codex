@@ -2163,6 +2163,7 @@ dependencies = [
  "codex-skills",
  "codex-skills-extension",
  "codex-state",
+ "codex-swarm-extension",
  "codex-teamwork-extension",
  "codex-thread-store",
  "codex-tools",
@@ -5124,6 +5125,24 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "codex-swarm-extension"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "codex-core",
+ "codex-extension-api",
+ "codex-protocol",
+ "codex-tools",
+ "core_test_support",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
